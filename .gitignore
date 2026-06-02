@@ -1,0 +1,15 @@
+*.o
+*.d
+*.asm
+*.sym
+*.img
+*.bin
+*.out
+*.log
+*.swp
+*.swo
+/.vscode
+
+kernel/kernel
+user/_*
+mkfs/mkfs
