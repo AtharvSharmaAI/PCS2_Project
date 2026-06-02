@@ -1,51 +1,259 @@
-NOTE: we have stopped maintaining the x86 version of xv6, and switched
-our efforts to the RISC-V version
-(https://github.com/mit-pdos/xv6-riscv.git)
+# Process Memory Information in xv6
 
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern x86-based multiprocessor using ANSI C.
+## Overview
+This project extends the xv6 operating system by implementing system calls that provide information about the memory usage of a process. The project helps in understanding how xv6 manages process memory, virtual memory, and page tables.
 
-ACKNOWLEDGMENTS
+The implemented system calls allow a user program to:
+- Retrieve the total memory size of the current process
+- Retrieve the number of virtual memory pages used
+- Retrieve the number of valid page table entries
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)). See also https://pdos.csail.mit.edu/6.828/, which
-provides pointers to on-line resources for v6.
+The project also includes a user-level program to test and display this information.
 
-xv6 borrows code from the following sources:
-    JOS (asm.h, elf.h, mmu.h, bootasm.S, ide.c, console.c, and others)
-    Plan 9 (entryother.S, mp.h, mp.c, lapic.c)
-    FreeBSD (ioapic.c)
-    NetBSD (console.c)
+---
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+# Objectives
 
-We are also grateful for the bug reports and patches contributed by Silas
-Boyd-Wickizer, Anton Burtsev, Cody Cutler, Mike CAT, Tej Chajed, eyalz800,
-Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel Filardo, Peter
-Froehlich, Yakir Goaron,Shivam Handa, Bryan Henry, Jim Huang, Alexander
-Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller, Eddie Kohler, Austin
-Liew, Imbar Marinescu, Yandong Mao, Matan Shabtay, Hitoshi Mitake, Carmi
-Merimovich, Mark Morrissey, mtasm, Joel Nider, Greg Price, Ayan Shafqat,
-Eldar Sehayek, Yongming Shen, Cam Tenny, tyfkda, Rafael Ubal, Warren
-Toomey, Stephen Tu, Pablo Ventura, Xi Wang, Keiichi Watanabe, Nicolas
-Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng, and Zou Chang Wei.
+- Understand process memory organization in xv6
+- Study virtual memory management and page tables
+- Learn how system calls are implemented in xv6
+- Explore how xv6 allocates and maps memory pages
+- Implement kernel-level functionality and expose it to user programs
 
-The code in the files that constitute xv6 is
-Copyright 2006-2018 Frans Kaashoek, Robert Morris, and Russ Cox.
+---
 
-ERROR REPORTS
+# Project Structure
 
-We don't process error reports (see note on top of this file).
+Important xv6 source files used in this project:
 
-BUILDING AND RUNNING XV6
+| File | Purpose |
+|---|---|
+| `proc.h` | Defines `struct proc` |
+| `proc.c` | Process management functions |
+| `vm.c` | Virtual memory and page allocation |
+| `mmu.h` | Paging structures and constants |
+| `syscall.h` | System call numbers |
+| `syscall.c` | System call dispatch table |
+| `sysproc.c` | System call implementations |
+| `user.h` | User-level syscall declarations |
+| `usys.S` | User syscall stubs |
+| `Makefile` | Build configuration |
 
-To build xv6 on an x86 ELF machine (like Linux or FreeBSD), run
-"make". On non-x86 or non-ELF machines (like OS X, even on x86), you
-will need to install a cross-compiler gcc suite capable of producing
-x86 ELF binaries (see https://pdos.csail.mit.edu/6.828/).
-Then run "make TOOLPREFIX=i386-jos-elf-". Now install the QEMU PC
-simulator and run "make qemu".
+---
+
+# Process Memory in xv6
+
+Each process in xv6 has its own virtual address space consisting of:
+- Text segment (code)
+- Data segment
+- Heap
+- Stack
+
+The process memory size is stored in:
+
+```c
+uint sz;
+```
+
+inside `struct proc`.
+
+Memory allocation flow in xv6:
+
+```text
+sbrk()
+   ↓
+sys_sbrk()
+   ↓
+growproc()
+   ↓
+allocuvm()
+   ↓
+mappages()
+```
+
+---
+
+# Implemented System Calls
+
+## 1. Get Process Memory Size
+
+Returns the total size of memory used by the current process in bytes.
+
+### Kernel Logic
+
+```c
+return myproc()->sz;
+```
+
+---
+
+## 2. Get Number of Virtual Pages
+
+Returns the number of virtual pages allocated to the process.
+
+Formula used:
+
+```text
+Pages = Process Size (sz) / PGSIZE
+```
+
+where:
+- `sz` = process size in bytes
+- `PGSIZE` = 4096 bytes
+
+---
+
+## 3. Get Number of Valid Page Table Entries
+
+Traverses the process page tables and counts entries where the present bit (`PTE_P`) is set.
+
+This indicates the number of valid mapped pages.
+
+---
+
+# Steps to Add a System Call in xv6
+
+The following modifications were made:
+
+## 1. Define syscall numbers
+
+Added entries in:
+
+```text
+syscall.h
+```
+
+---
+
+## 2. Add syscall handlers
+
+Added function mappings in:
+
+```text
+syscall.c
+```
+
+---
+
+## 3. Implement kernel functions
+
+Implemented syscall functions in:
+
+```text
+sysproc.c
+```
+
+---
+
+## 4. Add user-level declarations
+
+Added prototypes in:
+
+```text
+user.h
+```
+
+---
+
+## 5. Add syscall stubs
+
+Added syscall stubs in:
+
+```text
+usys.S
+```
+
+---
+
+# User Program
+
+A user-level test program was written to:
+- Invoke the implemented system calls
+- Display process memory information
+- Observe changes after memory allocation
+
+Example output:
+
+```text
+Process Memory Size : 16384 bytes
+Number of Pages     : 4
+Valid PTE Entries   : 4
+```
+
+---
+
+# Building and Running
+
+## Compile and Run xv6
+
+```bash
+make qemu
+```
+
+---
+
+## Run the User Program
+
+Inside xv6 shell:
+
+```bash
+meminfo
+```
+
+---
+
+# Testing Performed
+
+## 1. Initial Process Memory
+
+Observed default process memory usage after system startup.
+
+---
+
+## 2. Dynamic Memory Allocation
+
+Used `sbrk()` to allocate additional memory and verified:
+- increase in process size
+- increase in page count
+- increase in valid PTE count
+
+---
+
+## 3. Fork Experiment
+
+Created child processes using `fork()` and observed:
+- parent and child initially have same memory size
+- separate page tables are maintained
+
+---
+
+# Key Concepts Learned
+
+- Virtual memory management in xv6
+- Page tables and address translation
+- Kernel-user interaction through system calls
+- Process memory organization
+- Dynamic memory allocation in operating systems
+
+---
+
+# Future Improvements
+
+Possible extensions:
+- Display physical memory usage
+- Show detailed page table mappings
+- Implement demand paging
+- Track shared memory usage
+- Add per-segment memory statistics
+
+---
+
+# Conclusion
+
+This project provided hands-on experience with:
+- xv6 internals
+- operating system memory management
+- page table traversal
+- system call implementation
+
+It demonstrated how xv6 manages process memory and how kernel functionality can be exposed to user programs through system calls.
